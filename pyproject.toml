@@ -16,6 +16,10 @@ ipykernel = "^6.29.5"
 pandas = "^2.2.3"
 ipywidgets = "^8.1.5"
 tqdm = "^4.67.1"
+m3u8 = "^6.0.0"
+requests = "^2.32.3"
+pydub = "^0.25.1"
+moviepy = "^2.1.2"
 
 
 [build-system]
