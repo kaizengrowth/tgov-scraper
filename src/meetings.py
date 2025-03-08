@@ -87,16 +87,39 @@ async def parse_meetings(html: str) -> List[Dict[str, str]]:
             # Extract video link if available
             video_cell = cells[4]
             video_link = video_cell.css_first("a")
-            if video_link and video_link.attributes.get("href"):
-                href = video_link.attributes.get("href")
-                # Handle JavaScript links
-                if href.startswith("javascript:"):
-                    # Try to extract the video ID from the JavaScript
-                    if "clip_id=" in href:
-                        clip_id = href.split("clip_id=")[1].split("'")[0]
-                        meeting_data["video"] = f"{BASE_URL}&clip_id={clip_id}"
-                else:
-                    meeting_data["video"] = urljoin(BASE_URL, href)
+            if video_link:
+                # First try to extract from onclick attribute
+                onclick = video_link.attributes.get("onclick", "")
+                if onclick:
+                    # Look for window.open pattern
+                    if "window.open(" in onclick:
+                        # Extract URL from window.open('URL', ...)
+                        start_quote = onclick.find("'", onclick.find("window.open("))
+                        end_quote = onclick.find("'", start_quote + 1)
+                        if start_quote > 0 and end_quote > start_quote:
+                            video_url = onclick[start_quote + 1 : end_quote]
+                            # Handle protocol-relative URLs (starting with //)
+                            if video_url.startswith("//"):
+                                video_url = f"https:{video_url}"
+                            meeting_data["video"] = video_url
+
+                # If onclick extraction failed, try href
+                if meeting_data["video"] is None and video_link.attributes.get("href"):
+                    href = video_link.attributes.get("href")
+                    # Handle javascript: hrefs
+                    if href.startswith("javascript:"):
+                        # Try to extract clip_id from the onclick attribute again
+                        # This handles cases where href is javascript:void(0) but onclick has the real URL
+                        if meeting_data["video"] is None and "clip_id=" in onclick:
+                            start_idx = onclick.find("clip_id=")
+                            end_idx = onclick.find("'", start_idx)
+                            if start_idx > 0 and end_idx > start_idx:
+                                clip_id = onclick[start_idx + 8 : end_idx]
+                                meeting_data["video"] = (
+                                    f"https://tulsa-ok.granicus.com/MediaPlayer.php?view_id=4&clip_id={clip_id}"
+                                )
+                    else:
+                        meeting_data["video"] = urljoin(BASE_URL, href)
 
             meetings.append(meeting_data)
 
