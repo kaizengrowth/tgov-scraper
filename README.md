@@ -8,13 +8,20 @@ This project uses Poetry for dependency management.
 
 ```bash
 # Install dependencies
-poetry install
+poetry install --no-root
 
 # Activate the virtual environment
+poetry self add poetry-plugin-shell
 poetry shell
 
 # Install Jupyter kernel for this environment (needed for Jupyter notebooks)
 python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
+```
+
+## Running
+
+```bash
+poetry run jupyter notebook
 ```
 
 ## Running Tests
