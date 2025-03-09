@@ -14,7 +14,7 @@ poetry install
 poetry shell
 
 # Install Jupyter kernel for this environment (needed for Jupyter notebooks)
-python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
+poetry run python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
 ```
 
 ## Running Tests
@@ -34,6 +34,10 @@ poetry run pytest -v
 
 - `src/`: Source code for the scraper
   - `models/`: Pydantic models for data representation
+- 'scripts`: one off scripts for downloading, conversions, etc
 - `tests/`: Test files
 - `notebooks/`: Jupyter notebooks for analysis and exploration
-- `data/`: output from notebooks 
+- `data/`: output from notebooks
+  - `audio`: audio output from videos
+
+  pip install assemblyai moviepy
