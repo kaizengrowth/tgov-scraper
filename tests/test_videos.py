@@ -13,7 +13,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.videos import get_video_url, find_video_url
+from src.videos import get_video_url, get_video_url
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ async def test_extract_video_url_from_fixture(player_html):
     # Mock the fetch_page function to return our fixture HTML
     with patch("src.videos.fetch_page", AsyncMock(return_value=player_html)):
         # Use a dummy URL since we're mocking the fetch
-        url = await find_video_url("https://example.com/player")
+        url = await get_video_url("https://example.com/player")
 
         # Assert that we found a URL
         assert url is not None
@@ -51,8 +51,8 @@ async def test_extract_video_url_from_fixture(player_html):
 @pytest.mark.asyncio
 async def test_get_video_url_wrapper():
     """Test that the get_video_url wrapper function works correctly"""
-    # Mock the extract_video_url function to return a known value
-    with patch(
+    # Mock both fetch_page and extract_video_url functions
+    with patch("src.videos.fetch_page", AsyncMock(return_value="dummy html")), patch(
         "src.videos.extract_video_url",
         AsyncMock(return_value="https://example.com/video.m3u8"),
     ):
@@ -75,7 +75,7 @@ async def test_extract_video_url_javascript_variable():
     """
 
     with patch("src.videos.fetch_page", AsyncMock(return_value=html_with_js_var)):
-        url = await find_video_url("https://example.com/player")
+        url = await get_video_url("https://example.com/player")
         assert url == "https://example.com/video.m3u8"
 
 
@@ -91,7 +91,7 @@ async def test_extract_video_url_not_found():
     """
 
     with patch("src.videos.fetch_page", AsyncMock(return_value=html_without_video)):
-        url = await find_video_url("https://example.com/player")
+        url = await get_video_url("https://example.com/player")
         assert url is None
 
 
@@ -104,7 +104,7 @@ async def test_extract_video_url_with_real_url():
     pytest.skip("Skipping integration test by default")
 
     page_url = "https://tulsa-ok.granicus.com/player/clip/6412?view_id=4&redirect=true"
-    url = await find_video_url(page_url)
+    url = await get_video_url(page_url)
 
     # Assert that we found a URL
     assert url is not None

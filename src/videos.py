@@ -36,6 +36,24 @@ async def fetch_page(url: str, session: aiohttp.ClientSession) -> str:
         return await response.text()
 
 
+async def extract_video_url(html: str) -> Optional[str]:
+    """
+    Extract the video URL from HTML content of a Granicus player page.
+
+    Args:
+        html: The HTML content of the page
+
+    Returns:
+        The video URL if found, None otherwise
+    """
+    # Find the video_url JavaScript variable
+    js_var_match: Optional[re.Match] = re.search(r'video_url="([^"]+)"', html)
+    if js_var_match:
+        return js_var_match.group(1)
+
+    return None
+
+
 async def get_video_url(url: str) -> Optional[str]:
     """
     Extract the video URL from a Granicus player page.
@@ -47,11 +65,10 @@ async def get_video_url(url: str) -> Optional[str]:
         The video URL if found, None otherwise
     """
     async with aiohttp.ClientSession() as session:
-        html: str = await fetch_page(url, session)
-
-        # Find the video_url JavaScript variable
-        js_var_match: Optional[re.Match] = re.search(r'video_url="([^"]+)"', html)
-        if js_var_match:
-            return js_var_match.group(1)
-
-        return None
+        try:
+            html: str = await fetch_page(url, session)
+            return await extract_video_url(html)
+        except Exception as e:
+            # Log the error (in a real application)
+            # print(f"Error fetching video URL: {e}")
+            return None
