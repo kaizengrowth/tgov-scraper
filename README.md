@@ -15,7 +15,7 @@ poetry self add poetry-plugin-shell
 poetry shell
 
 # Install Jupyter kernel for this environment (needed for Jupyter notebooks)
-python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
+poetry run python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
 ```
 
 ## Running
@@ -41,6 +41,7 @@ poetry run pytest -v
 
 - `src/`: Source code for the scraper
   - `models/`: Pydantic models for data representation
+- 'scripts`: one off scripts for downloading, conversions, etc
 - `tests/`: Test files
 - `notebooks/`: Jupyter notebooks for analysis and exploration
 - `data/`: output from notebooks 
