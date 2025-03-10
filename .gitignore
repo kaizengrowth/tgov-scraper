@@ -3,6 +3,7 @@
 
 data/audio/
 data/video/
+data/transcripts/
 models/
 
 # Python
