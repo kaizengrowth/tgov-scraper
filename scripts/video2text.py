@@ -523,50 +523,61 @@ async def transcribe_video_with_diarization(
                         )
 
             # Special handling for very short segments (like "here" responses in roll calls)
-            if roll_call_mode and segment_duration < min_segment_duration:
-                # For very short segments, we're more sensitive to speaker changes
-                # Check if this segment is likely a response in a roll call
-                if segment["text"].strip().lower() in ["here", "present", "yes", "no"]:
-                    # Look for the most recent speaker change
-                    if speaker_times:
-                        # If multiple speakers detected, prefer the one that's different from previous segment
-                        if (
-                            len(speaker_times) > 1
-                            and len(segments_list) > 0
-                            and segment["id"] > 1
-                        ):
-                            # Get the previous segment's speaker
-                            prev_idx = segment["id"] - 2  # Adjust for 0-indexing
-                            if prev_idx >= 0 and prev_idx < len(segments_list):
-                                prev_speaker = segments_list[prev_idx].get(
-                                    "speaker", "SPEAKER_UNK"
-                                )
+            if roll_call_mode:
+                # Check if this segment contains a councillor name call
+                is_name_call = "councillor" in segment["text"].strip().lower()
+                is_response = segment["text"].strip().lower() in [
+                    "here",
+                    "present",
+                    "yes",
+                    "no",
+                ]
 
-                                # Prefer a different speaker than the previous segment
-                                for spk in speaker_times:
-                                    if spk != prev_speaker:
-                                        segment["speaker"] = spk
-                                        break
-                                else:
-                                    # If no different speaker found, use the dominant one
-                                    dominant_speaker = max(
-                                        speaker_times, key=speaker_times.get
-                                    )
-                                    segment["speaker"] = dominant_speaker
-                            else:
-                                # If can't find previous segment, use dominant speaker
-                                dominant_speaker = max(
-                                    speaker_times, key=speaker_times.get
-                                )
-                                segment["speaker"] = dominant_speaker
+                if is_name_call:
+                    # This is likely the clerk calling a name
+                    # Mark this segment with a special tag to identify the clerk
+                    segment["is_clerk"] = True
+
+                    # Use the dominant speaker for the clerk
+                    if speaker_times:
+                        dominant_speaker = max(speaker_times, key=speaker_times.get)
+                        segment["speaker"] = dominant_speaker
+                    else:
+                        segment["speaker"] = "SPEAKER_UNK"
+
+                elif is_response and segment_duration < min_segment_duration:
+                    # This is likely a councillor responding
+                    # Try to find a different speaker than the clerk
+
+                    # Look for the most recent name call (clerk)
+                    clerk_speaker = None
+                    for i in range(len(segments_list)):
+                        if i >= segment["id"] - 1:
+                            break
+                        prev_segment = segments_list[i]
+                        if prev_segment.get("is_clerk", False):
+                            clerk_speaker = prev_segment.get("speaker", "SPEAKER_UNK")
+                            break
+
+                    if clerk_speaker and speaker_times:
+                        # Try to find a different speaker than the clerk
+                        for spk in speaker_times:
+                            if spk != clerk_speaker:
+                                segment["speaker"] = spk
+                                break
                         else:
-                            # Use the dominant speaker
+                            # If no different speaker found, use the dominant one
                             dominant_speaker = max(speaker_times, key=speaker_times.get)
                             segment["speaker"] = dominant_speaker
                     else:
-                        segment["speaker"] = "SPEAKER_UNK"
+                        # If can't find clerk or no speaker times, use dominant speaker
+                        if speaker_times:
+                            dominant_speaker = max(speaker_times, key=speaker_times.get)
+                            segment["speaker"] = dominant_speaker
+                        else:
+                            segment["speaker"] = "SPEAKER_UNK"
                 else:
-                    # For non-response segments, use the dominant speaker
+                    # For other segments, use the dominant speaker
                     if speaker_times:
                         dominant_speaker = max(speaker_times, key=speaker_times.get)
                         segment["speaker"] = dominant_speaker
