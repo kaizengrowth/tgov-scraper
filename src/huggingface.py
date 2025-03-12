@@ -10,6 +10,7 @@ from pathlib import Path
 import torch
 from pyannote.audio import Pipeline
 from faster_whisper import WhisperModel
+import whisperx
 import dotenv
 
 # Configure logging
@@ -23,7 +24,7 @@ dotenv.load_dotenv()
 hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
 
-async def get_whisper_model(
+async def get_whisper(
     model_size: str,
     device: str = "cpu",
     force_download: bool = False,
@@ -59,141 +60,86 @@ async def get_whisper_model(
     return model
 
 
-async def load_diarization_pipeline(
-    hf_token: Optional[str] = None, device: str = "cpu"
-) -> "Pipeline":
+async def get_whisperx(
+    model_size: str = "medium",
+    device: str = "auto",
+    compute_type: str = "auto",
+    download_root: str = "../models/whisperx",
+    language: Optional[str] = None,
+    batch_size: int = 16,
+) -> dict:
     """
-    Load the PyAnnote speaker diarization pipeline.
+    Load WhisperX model with diarization support.
 
     Args:
-        hf_token: Hugging Face token for accessing diarization models
-        device: Device to use for inference (cpu, cuda, or mps)
+        model_size: Size of the model (tiny, base, small, medium, large-v1, large-v2, large-v3)
+        device: Device to use for inference ('auto', 'cpu', 'cuda', 'mps')
+                'auto' will use CUDA if available, otherwise CPU
+        compute_type: Computation precision ('auto', 'float32', 'float16', 'int8')
+                    'auto' will use float16 for GPU, int8 for CPU
+        download_root: Directory to save the downloaded models
+        language: Language code (e.g., 'en', 'fr'). If None, will be auto-detected.
+        batch_size: Batch size for processing
 
     Returns:
-        Loaded diarization pipeline
-
-    Raises:
-        ValueError: If token is invalid or model loading fails
+        Dictionary containing WhisperX model components
     """
+    # Ensure the model directory exists
+    os.makedirs(download_root, exist_ok=True)
 
-    # Check for HF token in environment if not provided
+    # Auto-detect optimal device and compute type
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"Auto-detected device: {device}")
 
-    # Set the token explicitly
-    os.environ["HF_TOKEN"] = hf_token
-    os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
-
-    # Check for PyAnnote models in the Hugging Face cache
-    await verify_pyannote_models(hf_token)
-
-    # Handle device for diarization
-    diarize_device = device
-    if device == "mps":
-        if torch.backends.mps.is_available():
-            logger.info("Using MPS device for diarization")
+    if compute_type == "auto":
+        if device == "cuda":
+            compute_type = "float16"  # Better performance on GPU
         else:
-            logger.warning(
-                "MPS requested but not available. Using CPU for diarization."
-            )
-            diarize_device = "cpu"
+            compute_type = "int8"  # Better performance on CPU
+        logger.info(f"Auto-selected compute_type: {compute_type}")
 
-    # Initialize the speaker diarization pipeline
-    try:
-        logger.info(
-            f"Initializing speaker diarization pipeline with token: {hf_token[:5]}..."
+    start_time = time.time()
+    logger.info(
+        f"Loading WhisperX model: {model_size} on {device} with {compute_type} precision"
+    )
+
+    # Create result dictionary to hold model components
+    result = {}
+
+    # Load main transcription model
+    transcribe_model = whisperx.load_model(
+        model_size,
+        device=device,
+        compute_type=compute_type,
+        download_root=download_root,
+    )
+    result["model"] = transcribe_model
+
+    # Load alignment model if language is specified
+    if language is not None:
+        logger.info(f"Loading alignment model for language: {language}")
+        align_model, align_metadata = whisperx.load_align_model(
+            language_code=language,
+            device=device,
+            model_dir=os.path.join(download_root, "alignment"),
         )
-        pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            use_auth_token=hf_token,
-        )
+        result["align_model"] = align_model
+        result["align_metadata"] = align_metadata
 
-        # Set the appropriate device
-        if diarize_device == "cuda":
-            logger.info("Moving pipeline to CUDA device")
-            pipeline = pipeline.to(torch.device("cuda"))
-        elif diarize_device == "mps" and torch.backends.mps.is_available():
-            logger.info("Moving pipeline to MPS device")
-            pipeline = pipeline.to(torch.device("mps"))
-
-        return pipeline
-    except Exception as e:
-        logger.error(f"Error during diarization pipeline initialization: {e}")
-        logger.error(f"Error type: {type(e).__name__}")
-        import traceback
-
-        logger.error(f"Traceback: {traceback.format_exc()}")
-
-        # Fail with a clear error message
-        raise ValueError(
-            f"Speaker diarization failed: {e}\n\n"
-            "Please ensure you have:\n"
-            "1. A valid Hugging Face token with access to pyannote/speaker-diarization-3.1\n"
-            "2. Accepted the user conditions at https://hf.co/pyannote/speaker-diarization-3.1\n"
-            "3. Set your token in the HUGGINGFACE_TOKEN environment variable or passed it with --hf-token\n"
-            "4. A working internet connection to download the model"
-        ) from e
-
-
-async def verify_pyannote_models(hf_token: str) -> bool:
-    """
-    Verify that PyAnnote models are available in the Hugging Face cache or can be downloaded.
-
-    Args:
-        hf_token: Hugging Face token for accessing diarization models
-
-    Returns:
-        True if all models are available, False otherwise
-    """
-    from huggingface_hub import HfFolder, hf_hub_download, try_to_load_from_cache
-
-    # Print Hugging Face cache directory
-    cache_dir = os.path.expanduser("~/.cache/huggingface")
-    logger.info(f"Hugging Face cache directory: {cache_dir}")
-
-    # Check if the token is valid
-    logger.info(f"Checking if Hugging Face token is valid...")
-    try:
-        token_is_valid = HfFolder.get_token() is not None
-        logger.info(f"Token from HfFolder: {token_is_valid}")
-    except Exception as e:
-        logger.warning(f"Error checking token from HfFolder: {e}")
-
-    # Check for PyAnnote models
-    model_ids = [
-        "pyannote/speaker-diarization-3.1",
-        "pyannote/segmentation-3.0",
-    ]
-
-    all_models_available = True
-    for model_id in model_ids:
-        logger.info(f"Checking for model: {model_id}")
+    # Create diarization pipeline if token is available
+    if hf_token:
         try:
-            # Try to find the model in cache
-            cache_path = try_to_load_from_cache(
-                repo_id=model_id,
-                filename="config.yaml",
-                use_auth_token=hf_token,
+            logger.info("Loading diarization pipeline")
+            diarize_model = whisperx.DiarizationPipeline(
+                use_auth_token=hf_token, device=device
             )
-            if cache_path:
-                logger.info(f"Found model in cache: {cache_path}")
-            else:
-                logger.info(f"Model not found in cache, will download: {model_id}")
-
-                # Try to download the model
-                try:
-                    download_path = hf_hub_download(
-                        repo_id=model_id,
-                        filename="config.yaml",
-                        use_auth_token=hf_token,
-                        force_download=True,
-                    )
-                    logger.info(f"Downloaded model to: {download_path}")
-                except Exception as download_error:
-                    logger.error(
-                        f"Error downloading model {model_id}: {download_error}"
-                    )
-                    all_models_available = False
+            result["diarize_model"] = diarize_model
         except Exception as e:
-            logger.error(f"Error checking for model {model_id}: {e}")
-            all_models_available = False
+            logger.error(f"Failed to load diarization pipeline: {e}")
+            logger.warning("Diarization will not be available")
 
-    return all_models_available
+    elapsed_time = time.time() - start_time
+    logger.info(f"WhisperX model loaded in {elapsed_time:.2f} seconds")
+
+    return result
