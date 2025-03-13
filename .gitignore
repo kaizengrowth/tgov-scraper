@@ -1,6 +1,11 @@
 # Environment variables
 .env
 
+data/audio/
+data/video/
+data/transcripts/
+models/
+
 # Python
 __pycache__/
 *.py[cod]
