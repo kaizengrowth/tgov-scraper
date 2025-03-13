@@ -223,7 +223,7 @@ async def transcribe_video_with_diarization(
     video_path: Path,
     output_path: Path,
     model_size: str = "medium",
-    device: str = "mps",
+    device: str = "auto",
     compute_type: str = "auto",
     batch_size: int = 8,
 ):
