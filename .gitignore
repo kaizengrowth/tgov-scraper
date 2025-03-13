@@ -41,3 +41,36 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Editor/IDE specific files
+*.cursor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+.venv/
+env/
+venv/
+ENV/
+
+# Database
+*.sqlite
+*.db
+
+# Logs
+*.log
+logs/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
