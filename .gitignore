@@ -5,6 +5,7 @@ data/audio/
 data/video/
 data/transcripts/
 models/
+notebooks/.ipynb_checkpoints/
 
 # Python
 __pycache__/
