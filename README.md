@@ -15,26 +15,26 @@ poetry self add poetry-plugin-shell
 poetry shell
 
 # Install Jupyter kernel for this environment (needed for Jupyter notebooks)
-poetry run python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
+python -m ipykernel install --user --name=tgov-scraper --display-name="TGOV Scraper"
 ```
 
 ## Running
 
 ```bash
-poetry run jupyter notebook
+jupyter notebook
 ```
 
 ## Running Tests
 
 ```bash
 # Run all tests
-poetry run pytest
+pytest
 
 # Run specific tests
-poetry run pytest tests/test_meetings.py
+pytest tests/test_meetings.py
 
 # Run tests with verbose output
-poetry run pytest -v
+pytest -v
 ```
 
 ## Project Structure

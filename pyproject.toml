@@ -6,7 +6,7 @@ authors = ["jdungan <johnadungan@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "3.11.*"
 selectolax = "^0.3.28"
 aiohttp = "^3.11.13"
 pytest-asyncio = "^0.25.3"
@@ -24,6 +24,10 @@ jupyter = "^1.1.1"
 jupyter-nbextensions-configurator = "^0.6.4"
 faster-whisper = "^1.1.1"
 
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.1.1"
+ipykernel = "^6.29.5"
 
 [build-system]
 requires = ["poetry-core"]
