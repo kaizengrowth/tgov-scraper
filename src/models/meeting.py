@@ -22,3 +22,11 @@ class Meeting(BaseModel):
     def __str__(self) -> str:
         """String representation of the meeting"""
         return f"{self.meeting} - {self.date} ({self.duration})"
+
+
+class GranicusPlayerPage(BaseModel):
+    """Model for Granicus video URLs"""
+
+    url: HttpUrl = Field(description="Base URL of the Granicus player page")
+    stream_url: Optional[HttpUrl] = None
+    download_url: Optional[HttpUrl] = None
