@@ -1,12 +1,12 @@
 from prefect import flow
 
-from tasks.meetings import create_meetings_csv
+from tasks.meetings import create_meetings_csv, download_videos
 
 
 @flow(log_prints=True)
 async def translate_meetings():
     await create_meetings_csv()
-    # TODO: await download_videos()
+    await download_videos()
     # TODO: await transcribe_videos()
     # TODO: await diarize_transcriptions()
     # TODO: await translate_transcriptions()
